@@ -43,3 +43,6 @@ Desktop.ini
 
 # Large binary files
 *.msi
+
+# Uploaded files
+server/uploads/

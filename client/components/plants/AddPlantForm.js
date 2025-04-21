@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FaCloudUploadAlt, FaTimes } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaTimes, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import plantsApi from '../../utils/plantsApi';
+import { isPlantImage } from '../../utils/plantRecognition';
 
 const AddPlantForm = ({ onClose, onPlantAdded }) => {
   const [formData, setFormData] = useState({
@@ -18,13 +19,15 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [isVerifyingImage, setIsVerifyingImage] = useState(false);
+  const [imageVerificationResult, setImageVerificationResult] = useState(null);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
@@ -44,8 +47,30 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
     
     // Create preview
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       setImagePreview(e.target.result);
+      
+      // Verify if image contains a plant
+      try {
+        setIsVerifyingImage(true);
+        setImageVerificationResult(null);
+        
+        // Short delay to allow the UI to update before potentially heavy processing
+        setTimeout(async () => {
+          const result = await isPlantImage(file);
+          setImageVerificationResult(result);
+          setIsVerifyingImage(false);
+          
+          if (!result.isPlant) {
+            setError(`This doesn't appear to be a plant image. The system detected: ${result.className}`);
+          } else {
+            setError(null);
+          }
+        }, 100);
+      } catch (verifyError) {
+        console.error('Error verifying plant image:', verifyError);
+        setIsVerifyingImage(false);
+      }
     };
     reader.readAsDataURL(file);
     
@@ -64,6 +89,12 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
     // Validate form
     if (!formData.name) {
       setError('Plant name is required');
+      return;
+    }
+    
+    // Block submission if image was verified as not being a plant
+    if (imageFile && imageVerificationResult && !imageVerificationResult.isPlant) {
+      setError(`Cannot submit a non-plant image. The system detected: ${imageVerificationResult.className}`);
       return;
     }
     
@@ -103,6 +134,31 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
     }
   };
   
+  // Update the error display to make it more prominent for non-plant images
+  const renderErrorMessage = () => {
+    if (!error) return null;
+    
+    const isNonPlantError = error.includes("doesn't appear to be a plant") || error.includes("Cannot submit a non-plant image");
+    
+    return (
+      <div className={`mb-4 px-4 py-3 rounded ${isNonPlantError ? 'bg-red-100 border-2 border-red-500 text-red-800' : 'bg-red-100 border border-red-400 text-red-700'}`}>
+        {isNonPlantError && (
+          <div className="flex items-center mb-2">
+            <FaExclamationTriangle className="text-red-600 mr-2" />
+            <span className="font-bold">Non-Plant Image Detected</span>
+          </div>
+        )}
+        <p>{error}</p>
+        {isNonPlantError && (
+          <p className="mt-2 text-sm">
+            Please upload an image that clearly shows a plant. If you believe this is a mistake, 
+            try taking a photo with better lighting or a clearer view of the plant.
+          </p>
+        )}
+      </div>
+    );
+  };
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
@@ -118,11 +174,7 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
         
         <div className="overflow-y-auto p-6 flex-grow">
           <form onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
-            )}
+            {renderErrorMessage()}
             
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
@@ -248,6 +300,24 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
                       alt="Plant preview"
                       className="object-cover w-full h-full"
                     />
+                    
+                    {/* Image verification indicator */}
+                    {isVerifyingImage && (
+                      <div className="absolute bottom-2 right-2 bg-yellow-500 text-white p-1 rounded-full flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-1"></div>
+                        <span className="text-xs">Verifying...</span>
+                      </div>
+                    )}
+                    
+                    {imageVerificationResult && !isVerifyingImage && (
+                      <div className={`absolute bottom-2 right-2 ${imageVerificationResult.isPlant ? 'bg-green-500' : 'bg-red-500'} text-white p-1 rounded-full`}>
+                        {imageVerificationResult.isPlant ? (
+                          <FaCheck className="h-4 w-4" />
+                        ) : (
+                          <FaExclamationTriangle className="h-4 w-4" />
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -256,6 +326,13 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
                   >
                     <FaTimes />
                   </button>
+                </div>
+              )}
+              
+              {/* Display plant detection confidence when available */}
+              {imageVerificationResult && imageVerificationResult.isPlant && (
+                <div className="mt-2 text-xs text-gray-600">
+                  Detected a {imageVerificationResult.className} with {Math.round(imageVerificationResult.confidence * 100)}% confidence
                 </div>
               )}
             </div>
