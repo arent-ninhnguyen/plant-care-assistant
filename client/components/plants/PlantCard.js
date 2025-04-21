@@ -7,7 +7,7 @@ const PlantCard = ({ plant, onEdit, onDelete }) => {
   // Default plant image if none provided
   const [imageError, setImageError] = useState(false);
   const imageSrc = plant.image && !imageError
-    ? `/uploads/${plant.image}` 
+    ? `http://localhost:5000/api/uploads/${plant.image}` 
     : '/images/default-plant.svg';
   
   // Map sunlight value to readable text

@@ -16,11 +16,13 @@ const plantRoutes = require('./routes/plants');
 const reminderRoutes = require('./routes/reminders');
 const userRoutes = require('./routes/users');
 const userDebugRoutes = require('./routes/users-debug');
+const uploadRoutes = require('./routes/uploads');
 
 app.use('/api/plants', plantRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/debug', userDebugRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
