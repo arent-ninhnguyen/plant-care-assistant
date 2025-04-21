@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Pot -->
+  <path d="M70 160 L130 160 L140 200 L60 200 Z" fill="#a86f4c" />
+  
+  <!-- Plant stem -->
+  <path d="M100 160 L100 80" stroke="#2e7d32" stroke-width="4" fill="none" />
+  
+  <!-- Leaves -->
+  <path d="M100 80 Q130 70 140 90 Q120 95 100 90" fill="#4caf50" />
+  <path d="M100 90 Q130 100 140 120 Q120 125 100 120" fill="#4caf50" />
+  <path d="M100 120 Q130 140 120 150 Q110 145 100 140" fill="#4caf50" />
+  
+  <path d="M100 80 Q70 70 60 90 Q80 95 100 90" fill="#4caf50" />
+  <path d="M100 90 Q70 100 60 120 Q80 125 100 120" fill="#4caf50" />
+  <path d="M100 120 Q70 140 80 150 Q90 145 100 140" fill="#4caf50" />
+  
+  <!-- Pot rim -->
+  <path d="M60 160 L140 160 L135 170 L65 170 Z" fill="#8d5b3f" />
+</svg> 

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "plant-care-assistant": "file:.."
+  }
+}
