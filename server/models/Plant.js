@@ -8,28 +8,31 @@ const plantSchema = new mongoose.Schema({
   },
   species: {
     type: String,
-    required: true,
     trim: true
   },
-  wateringFrequency: {
-    type: Number, // in days
-    required: true
+  location: {
+    type: String,
+    trim: true
+  },
+  waterFrequency: {
+    type: String,
+    trim: true
   },
   lastWatered: {
     type: Date,
     default: Date.now
   },
-  lightRequirements: {
+  sunlight: {
     type: String,
     enum: ['low', 'medium', 'high'],
-    required: true
+    default: 'medium'
   },
   notes: {
     type: String,
     trim: true
   },
   image: {
-    type: String // URL to plant image
+    type: String // Filename of the uploaded image
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -39,7 +42,17 @@ const plantSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Update the updatedAt field before saving
+plantSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 const Plant = mongoose.model('Plant', plantSchema);

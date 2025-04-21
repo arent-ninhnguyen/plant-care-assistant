@@ -26,13 +26,18 @@ function LoginForm() {
   const router = useRouter();
   const { callbackUrl, error: errorQuery } = router.query || {};
 
-  // Clear any lingering auth state when loading the login page
+  // Clear local storage items on component mount
   useEffect(() => {
-    // Clear localStorage
-    try {
-      localStorage.removeItem('plantCareUser');
-    } catch (err) {
-      console.error('Error clearing localStorage:', err);
+    // Clear any previous tokens to ensure we get fresh ones
+    localStorage.removeItem('plantCareUser');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('next-auth.session-token');
+    
+    // Get error from URL if present
+    const url = new URL(window.location.href);
+    const errorParam = url.searchParams.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
     }
   }, []);
 
@@ -89,14 +94,18 @@ function LoginForm() {
           console.log('Storing user in localStorage:', userToStore);
           localStorage.setItem('plantCareUser', JSON.stringify(userToStore));
           
-          // Verify it was stored correctly
-          const storedUser = JSON.parse(localStorage.getItem('plantCareUser'));
-          console.log('Verified stored user:', storedUser);
-          
           // Also store the token separately for easier access
           if (data.token) {
+            console.log('Storing separate accessToken for API access');
             localStorage.setItem('accessToken', data.token);
+          } else if (data.user.accessToken) {
+            console.log('Storing user.accessToken for API access');
+            localStorage.setItem('accessToken', data.user.accessToken);
           }
+          
+          // Verify it was stored correctly
+          const storedToken = localStorage.getItem('accessToken');
+          console.log('Verified stored token exists:', !!storedToken);
         } catch (err) {
           console.error('Error storing user data:', err);
         }

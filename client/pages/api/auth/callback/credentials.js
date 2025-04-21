@@ -86,7 +86,7 @@ export default async function handler(req, res) {
     // Generate a JWT token for API access
     const accessToken = jwt.sign(
       { id: user._id.toString() },
-      process.env.JWT_SECRET || 'fallback_jwt_secret',
+      process.env.NEXTAUTH_SECRET || 'fallback_jwt_secret',
       { expiresIn: '7d' }
     );
     

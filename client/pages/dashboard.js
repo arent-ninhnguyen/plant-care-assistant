@@ -9,8 +9,10 @@ import { FaLeaf, FaPlus, FaBell, FaTint, FaCalendarAlt } from 'react-icons/fa';
 import ClientOnly from '../components/common/ClientOnly';
 
 // Components
-import { PlantCard } from '../components/plants';
+import PlantCard from '../components/plants/PlantCard';
+import AddPlantForm from '../components/plants/AddPlantForm';
 import { ReminderItem } from '../components/reminders';
+import plantsApi from '../utils/plantsApi';
 
 export default function Dashboard() {
   return (
@@ -39,6 +41,7 @@ function DashboardContent() {
   const [authDebug, setAuthDebug] = useState({});
   const [manualUser, setManualUser] = useState(null);
   const [directSession, setDirectSession] = useState(null);
+  const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   
   const router = useRouter();
   const { data: session, status } = useSession({
@@ -101,6 +104,23 @@ function DashboardContent() {
     console.log('Direct session data:', directSession);
     console.log('Manual user:', manualUser);
     
+    // Debug token information
+    try {
+      const storedUser = localStorage.getItem('plantCareUser');
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const directToken = localStorage.getItem('accessToken');
+      
+      console.log('Token debug info:', {
+        hasAccessToken: !!directToken,
+        accessTokenLength: directToken ? directToken.length : 0,
+        hasStoredUser: !!storedUser,
+        hasUserAccessToken: parsedUser && !!parsedUser.accessToken,
+        userAccessTokenLength: parsedUser && parsedUser.accessToken ? parsedUser.accessToken.length : 0
+      });
+    } catch (err) {
+      console.error('Error debugging tokens:', err);
+    }
+    
     setAuthDebug({ 
       nextAuthStatus: status,
       nextAuthSession: session,
@@ -113,6 +133,8 @@ function DashboardContent() {
   const handleRetryLogin = () => {
     // Clear any stored data
     localStorage.removeItem('plantCareUser');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('next-auth.session-token');
     
     // Sign out from NextAuth
     signOut({ redirect: false }).then(() => {
@@ -140,26 +162,25 @@ function DashboardContent() {
         // Now we have a user, stop loading
         setLoading(false);
         
-        // Set up headers with the token if available
-        const accessToken = effectiveUser?.accessToken;
-        const config = accessToken ? {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        } : {};
-        
-        console.log('Using access token:', accessToken ? '(token available)' : '(no token)');
-        
-        // For testing, just set placeholder data instead of API calls
-        setPlants([
-          { _id: '1', name: 'Test Plant 1', species: 'Test Species', wateringFrequency: 7, lightRequirements: 'Medium' },
-          { _id: '2', name: 'Test Plant 2', species: 'Test Species', wateringFrequency: 14, lightRequirements: 'Low' }
-        ]);
-        
-        setReminders([
-          { _id: '1', type: 'watering', dueDate: new Date(), completed: false, plantId: { name: 'Test Plant 1' } },
-          { _id: '2', type: 'fertilizing', dueDate: new Date(), completed: true, plantId: { name: 'Test Plant 2' } }
-        ]);
+        try {
+          // Fetch real plant data from API
+          const plantsResponse = await plantsApi.getPlants();
+          setPlants(plantsResponse.data);
+          console.log('Plants loaded:', plantsResponse.data);
+          
+          // For now, just use sample reminders
+          setReminders([
+            { _id: '1', type: 'watering', dueDate: new Date(), completed: false, plantId: { name: 'Test Plant 1' } },
+            { _id: '2', type: 'fertilizing', dueDate: new Date(), completed: true, plantId: { name: 'Test Plant 2' } }
+          ]);
+        } catch (apiError) {
+          console.error('API call error:', apiError);
+          // If API calls fail, fall back to sample data for testing
+          setPlants([
+            { _id: '1', name: 'Test Plant 1', species: 'Test Species', waterFrequency: '7 days', sunlight: 'medium' },
+            { _id: '2', name: 'Test Plant 2', species: 'Test Species', waterFrequency: '14 days', sunlight: 'low' }
+          ]);
+        }
       } catch (err) {
         console.error('Dashboard data fetch error:', err);
         setError('Failed to load your data. Please try again.');
@@ -216,6 +237,32 @@ function DashboardContent() {
     );
   }
 
+  // Handle adding a new plant
+  const handleAddPlant = (newPlant) => {
+    setPlants([...plants, newPlant]);
+    setShowAddPlantForm(false);
+  };
+  
+  // Handle plant edit
+  const handleEditPlant = (plant) => {
+    // For now, just log - we'll implement edit functionality later
+    console.log('Edit plant:', plant);
+    alert('Edit functionality will be implemented in the next version.');
+  };
+  
+  // Handle plant delete
+  const handleDeletePlant = async (plantId) => {
+    if (window.confirm('Are you sure you want to delete this plant?')) {
+      try {
+        await plantsApi.deletePlant(plantId);
+        setPlants(plants.filter(plant => plant._id !== plantId));
+      } catch (error) {
+        console.error('Error deleting plant:', error);
+        alert('Failed to delete plant. Please try again.');
+      }
+    }
+  };
+
   return (
     <div>
       <div className="mb-8 flex justify-between items-center">
@@ -224,9 +271,12 @@ function DashboardContent() {
           <span className="text-sm text-gray-600">
             Welcome, {effectiveUser?.name || 'User'}
           </span>
-          <Link href="/plants/add" className="btn btn-primary">
+          <button 
+            onClick={() => setShowAddPlantForm(true)} 
+            className="btn btn-primary flex items-center"
+          >
             <FaPlus className="mr-2" /> Add Plant
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -258,96 +308,91 @@ function DashboardContent() {
           <div className="flex items-center">
             <FaBell className="text-yellow-500 text-2xl mr-3" />
             <div>
-              <h3 className="text-lg font-semibold">Pending Tasks</h3>
-              <p className="text-3xl font-bold">
-                {reminders.filter(r => !r.completed).length}
-              </p>
+              <h3 className="text-lg font-semibold">Active Reminders</h3>
+              <p className="text-3xl font-bold">{reminders.filter(r => !r.completed).length}</p>
             </div>
           </div>
         </div>
       </div>
       
-      {/* Plants and Reminders */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Plants Section */}
-        <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold flex items-center">
-                <FaLeaf className="mr-2 text-primary-500" /> My Plants
-              </h2>
-              <Link href="/plants" className="text-primary-600 hover:text-primary-800 text-sm">
-                View All
-              </Link>
-            </div>
-            
-            {plants.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">You haven't added any plants yet.</p>
-                <Link href="/plants/add" className="btn btn-primary">
-                  <FaPlus className="mr-2" /> Add Your First Plant
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plants.slice(0, 4).map(plant => (
-                  <div key={plant._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <h3 className="font-semibold text-lg">{plant.name}</h3>
-                    <p className="text-gray-600 text-sm">{plant.species}</p>
-                    <div className="flex justify-between mt-2">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        Water every {plant.wateringFrequency} days
-                      </span>
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                        {plant.lightRequirements} light
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {/* Plants Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">My Plants</h2>
+        
+        {plants.length === 0 ? (
+          <div className="bg-gray-50 p-8 rounded-lg border border-gray-200 text-center">
+            <FaLeaf className="text-gray-400 text-4xl mx-auto mb-4" />
+            <h3 className="text-xl font-medium mb-2">No plants yet</h3>
+            <p className="text-gray-600 mb-4">Start by adding your first plant to track</p>
+            <button 
+              onClick={() => setShowAddPlantForm(true)}
+              className="btn btn-primary"
+            >
+              <FaPlus className="mr-2" /> Add Your First Plant
+            </button>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {plants.map(plant => (
+              <PlantCard 
+                key={plant._id} 
+                plant={plant} 
+                onEdit={handleEditPlant}
+                onDelete={handleDeletePlant}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {/* Recent Reminders Section */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Recent Reminders</h2>
+          <Link href="/dashboard/reminders" className="text-primary-600 hover:underline flex items-center">
+            View All <FaCalendarAlt className="ml-1" />
+          </Link>
         </div>
         
-        {/* Reminders Section */}
-        <div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold flex items-center">
-                <FaCalendarAlt className="mr-2 text-primary-500" /> Upcoming Tasks
-              </h2>
-              <Link href="/reminders" className="text-primary-600 hover:text-primary-800 text-sm">
-                View All
-              </Link>
-            </div>
-            
-            {reminders.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No upcoming tasks.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {reminders.filter(r => !r.completed).slice(0, 5).map(reminder => (
-                  <div key={reminder._id} className="border rounded-lg p-3 hover:shadow-sm transition-shadow">
-                    <div className="flex justify-between">
-                      <h4 className="font-medium">{reminder.type.charAt(0).toUpperCase() + reminder.type.slice(1)}</h4>
-                      <span className="text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded">
-                        {new Date(reminder.dueDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {reminder.plantId?.name || 'Unknown plant'}
-                    </p>
-                    {reminder.notes && (
-                      <p className="text-xs text-gray-500 mt-1">{reminder.notes}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+        {reminders.length === 0 ? (
+          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 text-center">
+            <p className="text-gray-600">No reminders yet</p>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 divide-y">
+            {reminders.slice(0, 3).map(reminder => (
+              <div key={reminder._id} className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="font-medium">{reminder.plantId.name}</p>
+                  <p className="text-sm text-gray-600">
+                    {reminder.type.charAt(0).toUpperCase() + reminder.type.slice(1)} due {' '}
+                    {new Date(reminder.dueDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  {reminder.completed ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      Completed
+                    </span>
+                  ) : (
+                    <button className="btn btn-primary text-sm py-1">
+                      Mark Complete
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+      
+      {/* Add Plant Modal */}
+      {showAddPlantForm && (
+        <AddPlantForm 
+          onClose={() => setShowAddPlantForm(false)} 
+          onPlantAdded={handleAddPlant}
+        />
+      )}
     </div>
   );
 } 
