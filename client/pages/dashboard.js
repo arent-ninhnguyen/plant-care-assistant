@@ -11,6 +11,7 @@ import ClientOnly from '../components/common/ClientOnly';
 // Components
 import PlantCard from '../components/plants/PlantCard';
 import AddPlantForm from '../components/plants/AddPlantForm';
+import EditPlantForm from '../components/plants/EditPlantForm';
 import { ReminderItem } from '../components/reminders';
 import plantsApi from '../utils/plantsApi';
 
@@ -42,6 +43,8 @@ function DashboardContent() {
   const [manualUser, setManualUser] = useState(null);
   const [directSession, setDirectSession] = useState(null);
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
+  const [showEditPlantForm, setShowEditPlantForm] = useState(false);
+  const [plantToEdit, setPlantToEdit] = useState(null);
   
   const router = useRouter();
   const { data: session, status } = useSession({
@@ -245,9 +248,20 @@ function DashboardContent() {
   
   // Handle plant edit
   const handleEditPlant = (plant) => {
-    // For now, just log - we'll implement edit functionality later
-    console.log('Edit plant:', plant);
-    alert('Edit functionality will be implemented in the next version.');
+    setPlantToEdit(plant);
+    setShowEditPlantForm(true);
+  };
+  
+  // Handle updating a plant
+  const handlePlantUpdated = (updatedPlant) => {
+    // Update the plants array with the updated plant
+    setPlants(plants.map(p => 
+      p._id === updatedPlant._id ? updatedPlant : p
+    ));
+    
+    // Close the edit form
+    setShowEditPlantForm(false);
+    setPlantToEdit(null);
   };
   
   // Handle plant delete
@@ -391,6 +405,18 @@ function DashboardContent() {
         <AddPlantForm 
           onClose={() => setShowAddPlantForm(false)} 
           onPlantAdded={handleAddPlant}
+        />
+      )}
+      
+      {/* Edit Plant Modal */}
+      {showEditPlantForm && plantToEdit && (
+        <EditPlantForm 
+          plant={plantToEdit}
+          onClose={() => {
+            setShowEditPlantForm(false);
+            setPlantToEdit(null);
+          }} 
+          onPlantUpdated={handlePlantUpdated}
         />
       )}
     </div>

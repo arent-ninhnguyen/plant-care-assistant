@@ -70,12 +70,35 @@ router.put('/:id', auth, uploadSingleImage('plantImage'), async (req, res) => {
     }
     
     // Update fields from request body
-    const updates = Object.keys(req.body);
+    const updates = Object.keys(req.body).filter(key => key !== 'deleteImage'); // Exclude deleteImage from direct updates
     updates.forEach(update => plant[update] = req.body[update]);
     
     // Update image if a new one was uploaded
     if (req.filePath) {
+      // If replacing an image, delete the old one
+      if (plant.image) {
+        const fs = require('fs');
+        const path = require('path');
+        const oldImagePath = path.join(__dirname, '../../server/uploads', plant.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
       plant.image = req.filePath;
+    } 
+    // Delete image if deleteImage flag is set to true
+    else if (req.body.deleteImage === 'true') {
+      // Delete the physical file
+      if (plant.image) {
+        const fs = require('fs');
+        const path = require('path');
+        const imagePath = path.join(__dirname, '../../server/uploads', plant.image);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+      
+      plant.image = null;
     }
     
     await plant.save();
@@ -118,7 +141,16 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Plant not found' });
     }
     
-    // TODO: Delete plant image file if needed
+    // Delete the plant image file if it exists
+    if (plant.image) {
+      const fs = require('fs');
+      const path = require('path');
+      const imagePath = path.join(__dirname, '../../server/uploads', plant.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`Deleted image file: ${imagePath}`);
+      }
+    }
     
     res.json({ message: 'Plant removed' });
   } catch (error) {

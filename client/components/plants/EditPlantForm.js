@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaCloudUploadAlt, FaTimes } from 'react-icons/fa';
 import plantsApi from '../../utils/plantsApi';
 
-const AddPlantForm = ({ onClose, onPlantAdded }) => {
+const EditPlantForm = ({ plant, onClose, onPlantUpdated }) => {
   const [formData, setFormData] = useState({
     name: '',
     species: '',
@@ -18,6 +18,26 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [shouldDeleteImage, setShouldDeleteImage] = useState(false);
+  
+  // Initialize form with plant data
+  useEffect(() => {
+    if (plant) {
+      setFormData({
+        name: plant.name || '',
+        species: plant.species || '',
+        location: plant.location || '',
+        waterFrequency: plant.waterFrequency || '',
+        sunlight: plant.sunlight || 'medium',
+        notes: plant.notes || ''
+      });
+      
+      // Set image preview if plant has an image
+      if (plant.image) {
+        setImagePreview(`http://localhost:5000/api/uploads/${plant.image}`);
+      }
+    }
+  }, [plant]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,6 +61,7 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
     }
     
     setImageFile(file);
+    setShouldDeleteImage(false); // Reset delete flag when uploading new image
     
     // Create preview
     const reader = new FileReader();
@@ -55,6 +76,7 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
   const clearImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setShouldDeleteImage(true); // Set flag to delete image on server
   };
   
   const handleSubmit = async (e) => {
@@ -83,12 +105,17 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
         uploadData.append('plantImage', imageFile);
       }
       
+      // Add flag to delete image if needed
+      if (shouldDeleteImage) {
+        uploadData.append('deleteImage', 'true');
+      }
+      
       // Submit to API
-      const response = await plantsApi.addPlant(uploadData);
+      const response = await plantsApi.updatePlant(plant._id, uploadData);
       
       // Success
-      if (onPlantAdded) {
-        onPlantAdded(response.data);
+      if (onPlantUpdated) {
+        onPlantUpdated(response.data);
       }
       
       // Close form
@@ -96,8 +123,8 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
         onClose();
       }
     } catch (err) {
-      console.error('Error adding plant:', err);
-      setError(err.response?.data?.error || 'Failed to add plant. Please try again.');
+      console.error('Error updating plant:', err);
+      setError(err.response?.data?.error || 'Failed to update plant. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +134,7 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center border-b px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-800">Add New Plant</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Edit Plant</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -277,7 +304,7 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
             className="btn btn-primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : 'Save Plant'}
+            {isSubmitting ? 'Saving...' : 'Update Plant'}
           </button>
         </div>
       </div>
@@ -285,4 +312,4 @@ const AddPlantForm = ({ onClose, onPlantAdded }) => {
   );
 };
 
-export default AddPlantForm; 
+export default EditPlantForm; 
