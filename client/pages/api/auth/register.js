@@ -34,10 +34,7 @@ const connectDB = async () => {
     return;
   }
   
-  return mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true, 
-    useUnifiedTopology: true
-  });
+  return mongoose.connect(process.env.MONGODB_URI);
 };
 
 // This endpoint handles user registration

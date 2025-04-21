@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { FaLeaf, FaSignOutAlt, FaUserPlus, FaSignInAlt } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
-const Navbar = () => {
+const Navbar = ({ className = '' }) => {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('User');
@@ -92,7 +92,7 @@ const Navbar = () => {
   const showLoggedInUI = isOnDashboard || isLoggedIn;
 
   return (
-    <nav className="bg-white shadow-md">
+    <nav className={`bg-white shadow-md ${className}`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
@@ -107,9 +107,6 @@ const Navbar = () => {
               <span className="text-sm font-medium">
                 Welcome, {userName}
               </span>
-              <Link href="/dashboard" className="text-gray-700 hover:text-primary-600">
-                Dashboard
-              </Link>
               <button 
                 onClick={handleLogout}
                 className="flex items-center text-gray-700 hover:text-primary-600"

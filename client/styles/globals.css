@@ -23,8 +23,51 @@
   .card {
     @apply bg-white rounded-lg shadow-md overflow-hidden transition-shadow hover:shadow-lg;
   }
+  
+  /* Sidebar styles */
+  .sidebar {
+    @apply h-screen bg-gray-800 text-white fixed left-0 top-0 transition-all duration-300 shadow-lg z-20;
+  }
+  
+  .sidebar-collapsed {
+    @apply w-16;
+  }
+  
+  .sidebar-expanded {
+    @apply w-64;
+  }
+  
+  .sidebar-link {
+    @apply flex items-center px-4 py-3 hover:bg-gray-700 transition-colors;
+  }
+  
+  .sidebar-link-active {
+    @apply bg-primary-600;
+  }
+  
+  .sidebar-icon {
+    @apply mr-3;
+  }
+  
+  /* Content area adjustment for sidebar */
+  .has-sidebar {
+    @apply transition-all duration-300;
+  }
+  
+  .with-sidebar-expanded {
+    @apply md:ml-64;
+  }
+  
+  .with-sidebar-collapsed {
+    @apply md:ml-16;
+  }
 }
 
 body {
   @apply bg-gray-50 text-gray-900;
-} 
+}
+
+/* Adjust navbar and sidebar when both are present */
+.navbar-with-sidebar {
+  @apply md:pl-64;
+}
