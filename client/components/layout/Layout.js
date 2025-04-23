@@ -5,39 +5,22 @@ import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 
 const Layout = ({ children }) => {
   const [mounted, setMounted] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const router = useRouter();
+  const { status } = useSession();
 
-  // Handle any cleanup on first render and check if we should show sidebar
   useEffect(() => {
-    // This runs only once on initial client-side render
     if (!mounted) {
-      // Clear any stale auth data
-      try {
-        localStorage.removeItem('plantCareUser');
-      } catch (err) {
-        console.error('Error clearing localStorage:', err);
-      }
+      setSidebarCollapsed(window.innerWidth < 768);
+      setMounted(true);
     }
-    
-    // Determine if we should show the sidebar based on the route or auth status
-    const isOnDashboard = window.location.pathname.startsWith('/dashboard');
-    const hasAuthCookie = document.cookie.includes('next-auth.session-token');
-    
-    setShowSidebar(isOnDashboard || hasAuthCookie);
-    
-    // On mobile, start with collapsed sidebar
-    setSidebarCollapsed(window.innerWidth < 768);
-    
-    setMounted(true);
-  }, [mounted, router.pathname]);
+  }, [mounted]);
 
-  // Function to toggle sidebar state (passed to Sidebar component)
+  const showSidebar = status === 'authenticated';
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
@@ -55,7 +38,7 @@ const Layout = ({ children }) => {
           {mounted && showSidebar && (
             <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           )}
-          <main className={`flex-grow ${showSidebar ? (sidebarCollapsed ? 'with-sidebar-collapsed' : 'with-sidebar-expanded') : ''}`}>
+          <main className={`flex-grow transition-all duration-300 ease-in-out ${showSidebar ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : 'ml-0'}`}>
             <div className="container mx-auto px-4 py-6">
               {children}
             </div>

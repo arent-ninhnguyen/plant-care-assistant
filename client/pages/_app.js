@@ -2,6 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 import '../styles/globals.css';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Layout from '../components/layout/Layout';
 import { AppProvider } from '../context/AppContext';
 import { useState, useEffect } from 'react';

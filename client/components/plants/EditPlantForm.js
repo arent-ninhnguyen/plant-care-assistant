@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FaCloudUploadAlt, FaTimes, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import plantsApi from '../../utils/plantsApi';
 import { isPlantImage } from '../../utils/plantRecognition';
+import Image from 'next/image';
 
 const EditPlantForm = ({ plant, onClose, onPlantUpdated }) => {
   const [formData, setFormData] = useState({
@@ -35,9 +36,10 @@ const EditPlantForm = ({ plant, onClose, onPlantUpdated }) => {
         notes: plant.notes || ''
       });
       
-      // Set image preview if plant has an image
+      // Set image preview if plant has an image using correct URL
       if (plant.image) {
-        setImagePreview(`http://localhost:5000/api/uploads/${plant.image}`);
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:5000';
+        setImagePreview(`${backendUrl}/api/uploads/${plant.image}`);
       }
     }
   }, [plant]);
@@ -301,65 +303,24 @@ const EditPlantForm = ({ plant, onClose, onPlantUpdated }) => {
                 Plant Image
               </label>
               
-              {!imagePreview ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    id="plantImage"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
+              {imagePreview && (
+                <div className="relative w-full h-48 rounded-lg overflow-hidden border mb-2 bg-gray-100">
+                  <Image
+                    src={imagePreview}
+                    alt="Plant preview"
+                    fill
+                    className="object-contain p-1"
                   />
-                  <label
-                    htmlFor="plantImage"
-                    className="flex flex-col items-center justify-center cursor-pointer"
-                  >
-                    <FaCloudUploadAlt className="text-3xl text-gray-400 mb-2" />
-                    <span className="text-gray-500">Click to upload plant image</span>
-                    <span className="text-xs text-gray-400 mt-1">JPG, PNG or GIF (max 5MB)</span>
-                  </label>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="relative w-full h-48 rounded-lg overflow-hidden">
-                    <img
-                      src={imagePreview}
-                      alt="Plant preview"
-                      className="object-cover w-full h-full"
-                    />
-                    
-                    {/* Image verification indicator */}
-                    {isVerifyingImage && (
-                      <div className="absolute bottom-2 right-2 bg-yellow-500 text-white p-1 rounded-full flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-1"></div>
-                        <span className="text-xs">Verifying...</span>
-                      </div>
-                    )}
-                    
-                    {imageVerificationResult && !isVerifyingImage && (
-                      <div className={`absolute bottom-2 right-2 ${imageVerificationResult.isPlant ? 'bg-green-500' : 'bg-red-500'} text-white p-1 rounded-full`}>
-                        {imageVerificationResult.isPlant ? (
-                          <FaCheck className="h-4 w-4" />
-                        ) : (
-                          <FaExclamationTriangle className="h-4 w-4" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearImage}
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-              )}
-              
-              {/* Display plant detection confidence when available */}
-              {imageVerificationResult && imageVerificationResult.isPlant && (
-                <div className="mt-2 text-xs text-gray-600">
-                  Detected a {imageVerificationResult.className} with {Math.round(imageVerificationResult.confidence * 100)}% confidence
+                  {!imageFile && (
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 text-xs"
+                      aria-label="Remove image"
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
                 </div>
               )}
             </div>

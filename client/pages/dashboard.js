@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import axios from 'axios';
-import { FaLeaf, FaPlus, FaBell, FaTint, FaCalendarAlt } from 'react-icons/fa';
+import { FaLeaf, FaPlus, FaBell, FaTint, FaCalendarAlt, FaCheck } from 'react-icons/fa';
+import { format, parseISO } from 'date-fns';
 import ClientOnly from '../components/common/ClientOnly';
 
 // Components
@@ -14,6 +15,7 @@ import AddPlantForm from '../components/plants/AddPlantForm';
 import EditPlantForm from '../components/plants/EditPlantForm';
 import { ReminderItem } from '../components/reminders';
 import plantsApi from '../utils/plantsApi';
+import remindersApi from '../utils/remindersApi';
 
 export default function Dashboard() {
   return (
@@ -147,53 +149,43 @@ function DashboardContent() {
   };
 
   // Fetch plants and reminders when session is available
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        console.log('Attempting to fetch data');
-        
-        // Use any available user data
-        const effectiveUser = session?.user || directSession?.user || manualUser;
-        
-        // Check if we have a user object to use
-        if (!effectiveUser) {
-          console.warn('No effective user available yet');
-          // Don't set error yet, we might still be waiting for user data
-          return;
-        }
-        
-        // Now we have a user, stop loading
-        setLoading(false);
-        
-        try {
-          // Fetch real plant data from API
-          const plantsResponse = await plantsApi.getPlants();
-          setPlants(plantsResponse.data);
-          console.log('Plants loaded:', plantsResponse.data);
-          
-          // For now, just use sample reminders
-          setReminders([
-            { _id: '1', type: 'watering', dueDate: new Date(), completed: false, plantId: { name: 'Test Plant 1' } },
-            { _id: '2', type: 'fertilizing', dueDate: new Date(), completed: true, plantId: { name: 'Test Plant 2' } }
-          ]);
-        } catch (apiError) {
-          console.error('API call error:', apiError);
-          // If API calls fail, fall back to sample data for testing
-          setPlants([
-            { _id: '1', name: 'Test Plant 1', species: 'Test Species', waterFrequency: '7 days', sunlight: 'medium' },
-            { _id: '2', name: 'Test Plant 2', species: 'Test Species', waterFrequency: '14 days', sunlight: 'low' }
-          ]);
-        }
-      } catch (err) {
-        console.error('Dashboard data fetch error:', err);
-        setError('Failed to load your data. Please try again.');
-        setLoading(false);
-      }
-    };
+  const fetchData = useCallback(async () => {
+    if (status !== 'authenticated') {
+      console.warn('User not authenticated, skipping data fetch');
+      setLoading(false); // Stop loading if not authenticated
+      return; 
+    }
     
-    fetchData();
-  }, [status, session, directSession, manualUser]);
-  
+    setLoading(true);
+    setError('');
+    try {
+      console.log('Authenticated, fetching plants and reminders...');
+      // Fetch plants and reminders in parallel
+      const [plantsResponse, remindersResponse] = await Promise.all([
+        plantsApi.getPlants(),
+        remindersApi.getReminders()
+      ]);
+
+      setPlants(plantsResponse.data);
+      setReminders(remindersResponse.data); 
+      console.log('Plants loaded:', plantsResponse.data.length);
+      console.log('Reminders loaded:', remindersResponse.data.length);
+
+    } catch (apiError) {
+      console.error('API call error during initial fetch:', apiError);
+      setError('Failed to load dashboard data. Please try refreshing.');
+      // Optionally set fallback data or clear existing data
+      setPlants([]);
+      setReminders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    fetchData(); // Fetch data when component mounts or status changes
+  }, [fetchData]);
+
   // Get effective user from all sources
   const effectiveUser = session?.user || directSession?.user || manualUser;
   
@@ -266,16 +258,47 @@ function DashboardContent() {
   
   // Handle plant delete
   const handleDeletePlant = async (plantId) => {
-    if (window.confirm('Are you sure you want to delete this plant?')) {
+    if (window.confirm('Are you sure you want to delete this plant and its reminders?')) {
       try {
         await plantsApi.deletePlant(plantId);
         setPlants(plants.filter(plant => plant._id !== plantId));
+        setReminders(reminders.filter(r => r.plantId._id !== plantId));
       } catch (error) {
         console.error('Error deleting plant:', error);
         alert('Failed to delete plant. Please try again.');
       }
     }
   };
+
+  // Handle marking a reminder complete
+  const handleMarkComplete = async (reminderId) => {
+    console.log('Marking reminder complete:', reminderId);
+    try {
+      // Optimistic UI update: Mark as complete immediately
+      setReminders(prevReminders => 
+        prevReminders.map(r => r._id === reminderId ? { ...r, completed: true } : r)
+      );
+
+      // Call the API
+      await remindersApi.markComplete(reminderId);
+      console.log('Reminder marked complete successfully on backend');
+      // Optionally refetch reminders or rely on optimistic update
+      // fetchData(); // Uncomment to refetch all data
+
+    } catch (err) {
+      console.error('Failed to mark reminder complete:', err);
+      setError('Failed to update reminder status.');
+      // Revert optimistic update on error
+      setReminders(prevReminders =>
+        prevReminders.map(r => r._id === reminderId ? { ...r, completed: false } : r)
+      );
+    }
+  };
+
+  // Filter for active reminders (not completed)
+  const activeReminders = reminders.filter(r => !r.completed);
+  // Sort reminders by due date (soonest first)
+  const sortedReminders = [...activeReminders].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
   return (
     <div>
@@ -323,7 +346,7 @@ function DashboardContent() {
             <FaBell className="text-yellow-500 text-2xl mr-3" />
             <div>
               <h3 className="text-lg font-semibold">Active Reminders</h3>
-              <p className="text-3xl font-bold">{reminders.filter(r => !r.completed).length}</p>
+              <p className="text-3xl font-bold">{activeReminders.length}</p>
             </div>
           </div>
         </div>
@@ -374,7 +397,7 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 divide-y">
-            {reminders.slice(0, 3).map(reminder => (
+            {sortedReminders.slice(0, 5).map(reminder => (
               <div key={reminder._id} className="p-4 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{reminder.plantId.name}</p>
@@ -389,7 +412,10 @@ function DashboardContent() {
                       Completed
                     </span>
                   ) : (
-                    <button className="btn btn-primary text-sm py-1">
+                    <button 
+                      onClick={() => handleMarkComplete(reminder._id)}
+                      className="btn btn-primary text-sm py-1"
+                    >
                       Mark Complete
                     </button>
                   )}
