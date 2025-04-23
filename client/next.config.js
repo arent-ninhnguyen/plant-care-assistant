@@ -18,8 +18,9 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:5000/api/:path*', // Proxy API requests to our Express backend
+        // Exclude /api/auth using a negative lookahead
+        source: '/api/((?!auth/).*)',
+        destination: 'http://localhost:5000/api/$1', // Proxy API requests to our Express backend
       },
     ];
   },

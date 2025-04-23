@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react'; // Import signIn
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { FaSignInAlt } from 'react-icons/fa';
@@ -24,27 +25,20 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
-  const { callbackUrl, error: errorQuery } = router.query || {};
+  // Get callbackUrl and potential error from query parameters
+  const { callbackUrl, error: queryError } = router.query || {}; 
 
-  // Clear local storage items on component mount
+  // Set error from query parameter if provided (e.g., from NextAuth redirect)
   useEffect(() => {
-    // Clear any previous tokens to ensure we get fresh ones
-    localStorage.removeItem('plantCareUser');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('next-auth.session-token');
-    
-    // Get error from URL if present
-    const url = new URL(window.location.href);
-    const errorParam = url.searchParams.get('error');
-    if (errorParam) {
-      setError(decodeURIComponent(errorParam));
+    if (queryError && !error) { // Only set if no local error is already present
+      // Map common NextAuth error messages
+      if (queryError === "CredentialsSignin") {
+        setError("Invalid email or password. Please try again.");
+      } else {
+        setError(decodeURIComponent(queryError));
+      }
     }
-  }, []);
-
-  // Set error from query parameter if provided
-  if (errorQuery && !error) {
-    setError(decodeURIComponent(errorQuery));
-  }
+  }, [queryError, error]); // Depend on queryError and local error state
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,71 +48,45 @@ function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError(''); // Clear previous errors on new submission
     
     try {
-      console.log('Attempting login with:', formData.email);
-      
-      // Use our custom credentials endpoint directly
-      const response = await fetch('/api/auth/callback/credentials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+      console.log('Attempting login via NextAuth signIn for:', formData.email);
+
+      // Use NextAuth's signIn function
+      const result = await signIn('credentials', {
+        redirect: false, // We will handle redirection manually based on the result
+        email: formData.email,
+        password: formData.password,
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Login failed:', data);
-        throw new Error(data.error || 'Invalid credentials');
-      }
-      
-      console.log('Login successful, user data:', data.user);
-      
-      // Store user data in localStorage for custom session handling
-      if (data.user) {
-        try {
-          // Make sure we're storing the user data with the expected structure
-          const userToStore = {
-            id: data.user.id,
-            name: data.user.name,
-            email: data.user.email,
-            accessToken: data.user.accessToken || data.token || ''
-          };
-          
-          console.log('Storing user in localStorage:', userToStore);
-          localStorage.setItem('plantCareUser', JSON.stringify(userToStore));
-          
-          // Also store the token separately for easier access
-          if (data.token) {
-            console.log('Storing separate accessToken for API access');
-            localStorage.setItem('accessToken', data.token);
-          } else if (data.user.accessToken) {
-            console.log('Storing user.accessToken for API access');
-            localStorage.setItem('accessToken', data.user.accessToken);
-          }
-          
-          // Verify it was stored correctly
-          const storedToken = localStorage.getItem('accessToken');
-          console.log('Verified stored token exists:', !!storedToken);
-        } catch (err) {
-          console.error('Error storing user data:', err);
+
+      console.log('NextAuth signIn result:', result);
+
+      if (result.error) {
+        // Handle authentication errors (e.g., invalid credentials)
+        // Map common NextAuth error messages for user-friendliness
+        if (result.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please try again.");
+        } else {
+           setError(result.error); // Show other errors directly
         }
+        setIsLoading(false);
+      } else if (result.ok) {
+        // Authentication successful
+        // Redirect to the intended page (callbackUrl) or the dashboard
+        console.log('Login successful, redirecting...');
+        // Use replace to avoid the login page being in browser history
+        router.replace(callbackUrl || '/dashboard'); 
+        // No need to setIsLoading(false) as we are navigating away
+      } else {
+        // Handle unexpected non-error, non-ok result (should not happen often)
+        setError('An unknown login error occurred.');
+        setIsLoading(false);
       }
-      
-      // Wait a moment for NextAuth to fully process the login
-      setTimeout(() => {
-        // Hard redirect to dashboard or callback URL
-        window.location.href = data.url || callbackUrl || '/dashboard';
-      }, 500);
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'An error occurred during login. Please try again.');
+      // Handle unexpected errors during the signIn process itself
+      console.error('Unexpected Login error:', err);
+      setError(err.message || 'An unexpected error occurred during login.');
       setIsLoading(false);
     }
   };
@@ -144,7 +112,7 @@ function LoginForm() {
             Email Address
           </label>
           <input
-            className="form-input"
+            className="form-input w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" // Added basic styling
             type="email"
             id="email"
             name="email"
@@ -159,7 +127,7 @@ function LoginForm() {
             Password
           </label>
           <input
-            className="form-input"
+            className="form-input w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" // Added basic styling
             type="password"
             id="password"
             name="password"
@@ -172,7 +140,7 @@ function LoginForm() {
         
         <button
           type="submit"
-          className="w-full btn btn-primary"
+          className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50" // Added basic styling
           disabled={isLoading}
         >
           {isLoading ? 'Signing in...' : 'Sign In'}

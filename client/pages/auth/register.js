@@ -23,6 +23,7 @@ function RegisterForm() {
     password2: ''
   });
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
@@ -37,15 +38,22 @@ function RegisterForm() {
     
     if (formData.password !== formData.password2) {
       setError('Passwords do not match');
+      setSuccessMessage('');
       return;
     }
     
     setIsLoading(true);
     setError('');
+    setSuccessMessage('');
     
+    const backendRegisterUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL 
+                               ? `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users/register` 
+                               : 'http://localhost:5000/api/users/register';
+
     try {
-      // Use our custom registration endpoint
-      const response = await fetch('/api/auth/register', {
+      console.log('Attempting registration via backend:', backendRegisterUrl);
+      
+      const response = await fetch(backendRegisterUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,35 +65,29 @@ function RegisterForm() {
         }),
       });
       
+      let responseData = {};
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+      }
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Registration failed');
+        const errorMessage = responseData.message || response.statusText || 'Registration failed';
+        console.error('Backend registration failed:', errorMessage, 'Status:', response.status);
+        throw new Error(errorMessage);
       }
       
-      // Get the response data
-      const data = await response.json();
+      console.log('Registration successful, response data:', responseData); 
+      setSuccessMessage('Account created successfully! Please log in.');
       
-      // Save user data to localStorage for the Navbar to use
-      if (data.user) {
-        try {
-          localStorage.setItem('plantCareUser', JSON.stringify({
-            id: data.user.id,
-            name: formData.name, // Use the name from the form
-            email: formData.email
-          }));
-          console.log('User data saved to localStorage:', formData.name);
-        } catch (err) {
-          console.error('Error saving to localStorage:', err);
-        }
-      }
-      
-      // Registration successful - redirect to dashboard
-      window.location.href = '/dashboard';
+      setTimeout(() => {
+        router.push('/auth/login');
+      }, 2000);
       
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error('Registration error caught:', err);
       setError(err.message || 'An error occurred during registration');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -103,6 +105,11 @@ function RegisterForm() {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
           {error}
         </div>
+      )}
+      {successMessage && (
+         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4" role="alert">
+           {successMessage}
+         </div>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -170,7 +177,7 @@ function RegisterForm() {
         
         <button
           type="submit"
-          className="w-full btn btn-primary"
+          className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
           disabled={isLoading}
         >
           {isLoading ? 'Creating Account...' : 'Register'}
