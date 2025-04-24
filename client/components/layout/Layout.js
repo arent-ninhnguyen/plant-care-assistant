@@ -6,11 +6,13 @@ import Sidebar from './Sidebar';
 import Footer from './Footer';
 import Head from 'next/head';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
 
 const Layout = ({ children }) => {
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { status } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     if (!mounted) {
@@ -19,7 +21,11 @@ const Layout = ({ children }) => {
     }
   }, [mounted]);
 
-  const showSidebar = status === 'authenticated';
+  // Routes where the sidebar should NOT be shown
+  const noSidebarRoutes = ['/auth/login', '/auth/register'];
+
+  // Show sidebar only if authenticated AND not on a no-sidebar route
+  const showSidebar = status === 'authenticated' && !noSidebarRoutes.includes(router.pathname);
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -33,7 +39,7 @@ const Layout = ({ children }) => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <div className="flex flex-col min-h-screen">
-        <Navbar className={showSidebar ? 'navbar-with-sidebar' : ''} />
+        <Navbar showSidebar={showSidebar} />
         <div className="flex flex-grow relative">
           {mounted && showSidebar && (
             <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
@@ -44,7 +50,7 @@ const Layout = ({ children }) => {
             </div>
           </main>
         </div>
-        <Footer className={showSidebar ? 'navbar-with-sidebar' : ''} />
+        <Footer showSidebar={showSidebar} />
       </div>
     </>
   );

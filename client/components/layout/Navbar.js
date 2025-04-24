@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-// import { useRouter } from 'next/router'; // No longer needed for auth check
+import { useRouter } from 'next/router'; // <-- Import useRouter
 import { FaLeaf, FaSignOutAlt, FaUserPlus, FaSignInAlt, FaUserCircle } from 'react-icons/fa';
 import { useSession, signOut } from 'next-auth/react'; // Import useSession and signOut
 import Image from 'next/image'; // <-- Import Image
@@ -27,11 +27,17 @@ const getAbsoluteAvatarUrl = (relativeUrl) => {
 };
 
 const Navbar = ({ className = '' }) => {
-  // Get session status and data
   const { data: session, status } = useSession();
+  const router = useRouter(); // <-- Get router instance
 
-  // Construct avatar URL only if authenticated
-  const avatarUrl = status === 'authenticated' && session?.user?.avatarUrl 
+  // Routes where user-specific info should be hidden even if technically authenticated during transition
+  const authRoutes = ['/auth/login', '/auth/register'];
+
+  // Determine if we are on an auth page
+  const onAuthPage = authRoutes.includes(router.pathname);
+
+  // Construct avatar URL only if authenticated AND not on auth page
+  const avatarUrl = status === 'authenticated' && !onAuthPage && session?.user?.avatarUrl 
                     ? getAbsoluteAvatarUrl(session.user.avatarUrl) 
                     : null;
 
@@ -58,8 +64,8 @@ const Navbar = ({ className = '' }) => {
               <span className="text-sm text-gray-500">Loading...</span>
             )}
 
-            {status === 'authenticated' && session?.user && (
-              // User is logged in
+            {/* Show User Info only if Authenticated AND NOT on an Auth Page */}
+            {status === 'authenticated' && !onAuthPage && session?.user && (
               <>
                 <Link href="/dashboard/profile" title="Go to Profile">
                   <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
@@ -93,17 +99,23 @@ const Navbar = ({ className = '' }) => {
               </>
             )}
 
-            {status === 'unauthenticated' && (
-              // User is not logged in
+            {/* Show Login/Register only if Unauthenticated OR on an Auth Page */}
+            {(status === 'unauthenticated' || onAuthPage) && (
               <>
-                <Link href="/auth/register" className="flex items-center text-gray-700 hover:text-primary-600">
-                  <FaUserPlus className="mr-1" /> 
-                  <span>Register</span>
-                </Link>
-                <Link href="/auth/login" className="flex items-center text-gray-700 hover:text-primary-600">
-                  <FaSignInAlt className="mr-1" /> 
-                  <span>Login</span>
-                </Link>
+                {/* Optionally hide Register link if already on register page */} 
+                {!onAuthPage || router.pathname !== '/auth/register' ? (
+                   <Link href="/auth/register" className="flex items-center text-gray-700 hover:text-primary-600">
+                    <FaUserPlus className="mr-1" /> 
+                    <span>Register</span>
+                  </Link>
+                ) : null}
+                {/* Optionally hide Login link if already on login page */} 
+                {!onAuthPage || router.pathname !== '/auth/login' ? (
+                  <Link href="/auth/login" className="flex items-center text-gray-700 hover:text-primary-600">
+                    <FaSignInAlt className="mr-1" /> 
+                    <span>Login</span>
+                  </Link>
+                ) : null}
               </>
             )}
           </div>
