@@ -5,7 +5,7 @@ import * as mobilenet from '@tensorflow-models/mobilenet';
 const plantClasses = [
   'pot', 'vase', 'flower', 'plant', 'tree', 'garden', 'leaf', 'greenhouse',
   'bonsai', 'houseplant', 'herb', 'succulent', 'forest', 'jungle', 
-  'vegetation'
+  'vegetation', 'flowerpot'
 ];
 
 // Initialize model lazily
@@ -30,7 +30,7 @@ const loadModel = async () => {
  * @param {number} confidenceThreshold - Minimum confidence to consider a match (0-1)
  * @returns {Promise<{isPlant: boolean, confidence: number, className: string}>} Result object
  */
-export const isPlantImage = async (imageSource, confidenceThreshold = 0.5) => {
+export const isPlantImage = async (imageSource, confidenceThreshold = 0.4) => {
   try {
     // Create an HTMLImageElement from the source
     const img = await createImageElement(imageSource);
@@ -51,7 +51,10 @@ export const isPlantImage = async (imageSource, confidenceThreshold = 0.5) => {
         className.includes(plantClass)
       );
       
+      console.log(`  [Plant Recognition] Class: ${prediction.className}, Probability: ${prediction.probability}, Matches Plant List: ${matchesPlant}`);
+
       if (matchesPlant && prediction.probability > confidenceThreshold) {
+        console.log(`    [Plant Recognition] Match found! Returning isPlant: true`);
         return {
           isPlant: true,
           confidence: prediction.probability,

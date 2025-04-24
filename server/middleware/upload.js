@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../server/uploads');
+const uploadDir = path.join(__dirname, '../', 'public', 'uploads', 'plants');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -58,15 +58,14 @@ const uploadSingleImage = (fieldName) => {
         return res.status(500).json({ error: err.message });
       }
       
-      // If no file was uploaded, just continue
       if (!req.file) {
-        console.log('No file uploaded');
-        return next();
+        // console.log('No file uploaded for field:', fieldName);
+        return next(); // Okay to proceed if upload is optional
       }
       
       // Add the relative path to the file in the request
-      req.filePath = path.basename(req.file.path);
-      console.log('File uploaded:', req.filePath);
+      req.filePath = `/uploads/plants/${req.file.filename}`;
+      console.log('File uploaded, path set to:', req.filePath);
       
       next();
     });

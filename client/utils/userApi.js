@@ -56,9 +56,49 @@ export const updateUserPassword = async (currentPassword, newPassword) => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      // Handle cases where the response is not JSON (e.g., plain text or HTML error page)
+      errorData = { message: await response.text() || 'Failed to update password' };
+    }
     throw new Error(errorData.message || 'Failed to update password');
   }
 
   return response.json();
+};
+
+/**
+ * NEW: Updates the user's avatar.
+ * @param {File} avatarFile - The avatar image file.
+ * @returns {Promise<object>} - The updated user object (including new avatarUrl).
+ */
+export const updateUserAvatar = async (avatarFile) => {
+  const token = await getAuthToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const formData = new FormData();
+  formData.append('avatar', avatarFile); // Key 'avatar' must match backend (multer field name)
+
+  const response = await fetch(`${API_BASE_URL}/users/me/avatar`, {
+    method: 'PUT',
+    headers: {
+      // 'Content-Type' is automatically set to 'multipart/form-data' by the browser with FormData
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      errorData = { message: await response.text() || 'Failed to upload avatar' };
+    }
+    throw new Error(errorData.message || 'Failed to upload avatar');
+  }
+
+  return response.json(); // Expect backend to return updated user data
 }; 

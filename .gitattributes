@@ -1,1 +1,22 @@
-* text=auto eol=lf 
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Force specific text files to always use LF
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.json  text eol=lf
+*.css   text eol=lf
+*.scss  text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+
+# Declare files that will always have CRLF line endings on checkout (if needed)
+# *.bat    text eol=crlf
+
+# Denote all files that are truly binary and should not be modified
+# *.png     binary
+# *.jpg     binary 

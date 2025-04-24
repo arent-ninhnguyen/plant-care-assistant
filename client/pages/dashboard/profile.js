@@ -2,14 +2,37 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
-import { FaUserCircle, FaEdit, FaLock } from 'react-icons/fa';
-import { updateUserName, updateUserPassword } from '../../utils/userApi';
+import { useEffect, useState, useRef } from 'react';
+import { FaUserCircle, FaEdit, FaLock, FaCamera, FaUpload } from 'react-icons/fa';
+import { updateUserName, updateUserPassword, updateUserAvatar } from '../../utils/userApi';
 import Alert from '../../components/ui/Alert';
+
+// --- NEW: Define Backend Origin ---
+// Attempt to get the origin from the full API URL environment variable
+let backendOrigin = 'http://localhost:5000'; // Default fallback
+if (process.env.NEXT_PUBLIC_API_URL) {
+  try {
+    const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
+    backendOrigin = apiUrl.origin; // e.g., http://localhost:5000
+  } catch (e) {
+    console.error('Invalid NEXT_PUBLIC_API_URL, using default origin.', e);
+  }
+}
+
+// Helper function to create absolute URL
+const getAbsoluteAvatarUrl = (relativeUrl) => {
+  if (!relativeUrl || !relativeUrl.startsWith('/')) {
+    // Return null if path is invalid or missing to avoid broken image icons
+    return null; 
+  }
+  // Prepend origin ONLY (removing /api)
+  return `${backendOrigin}${relativeUrl}`; // Example: http://localhost:5000/uploads/avatars/...
+};
 
 const ProfilePage = () => {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
+  const fileInputRef = useRef(null);
 
   // State for name update
   const [name, setName] = useState('');
@@ -22,15 +45,44 @@ const ProfilePage = () => {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
 
-  // Redirect if not authenticated
+  // NEW: State for avatar update
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState({ type: '', text: '' });
+
+  // --- Effects ---
   useEffect(() => {
+    // console.log('[Effect Run] Status:', status, 'Session User:', session?.user);
     if (status === 'unauthenticated') {
       router.replace('/auth/login');
-    } else if (session?.user?.name) {
-      // Initialize name field with current name
-      setName(session.user.name);
+    } else if (session?.user) {
+      // Set name on load/session change
+      setName(session.user.name || '');
+      
+      // --- REVISED LOGIC: Only set INITIAL avatar preview --- 
+      if (avatarPreview === null) { // Check if preview is not already set (by local selection or previous load)
+        const sessionAvatarAbsoluteUrl = getAbsoluteAvatarUrl(session.user.avatarUrl);
+        console.log('[Effect Run - Initial Load?] Setting avatarPreview from session data:', sessionAvatarAbsoluteUrl); // Log the constructed URL
+        // Only set if the URL is valid
+        if (sessionAvatarAbsoluteUrl) {
+             setAvatarPreview(sessionAvatarAbsoluteUrl);
+        } else {
+             setAvatarPreview(null); // Ensure it's null if URL construction failed
+        }
+      }
     }
+    // Depend only on session, status, router for initial load and auth changes
   }, [status, router, session]);
+
+  // Effect to clean up preview URL
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   if (status === 'loading') {
     return <div className="p-6 text-center">Loading profile...</div>;
@@ -55,12 +107,12 @@ const ProfilePage = () => {
     setNameMessage({ type: '', text: '' }); // Clear previous messages
 
     try {
-      await updateUserName(name);
+      const updatedUser = await updateUserName(name);
       setNameMessage({ type: 'success', text: 'Name updated successfully!' });
-      // Update the session client-side
-      await updateSession({ user: { ...session.user, name: name } });
-      // You might also want to refetch the session to ensure it's fully updated
-      // await getSession(); // Requires importing getSession
+      // Pass the existing session data merged with name update,
+      // ensuring avatarUrl remains the RELATIVE path store in the session.
+      const updatedSessionData = { ...session.user, name: updatedUser.name }; // Only update the name
+      await updateSession({ user: updatedSessionData });
     } catch (error) {
       setNameMessage({ type: 'error', text: error.message || 'Failed to update name.' });
     } finally {
@@ -90,6 +142,55 @@ const ProfilePage = () => {
     }
   };
 
+  // NEW: Avatar Handlers
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setAvatarFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+      setAvatarMessage({ type: '', text: '' }); 
+    } else {
+      setAvatarFile(null);
+      setAvatarPreview(getAbsoluteAvatarUrl(user.avatarUrl) || null);
+      setAvatarMessage({ type: 'error', text: 'Please select a valid image file.' });
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) {
+      setAvatarMessage({ type: 'info', text: 'Please select an image file first.' });
+      return;
+    }
+    setIsAvatarLoading(true);
+    setAvatarMessage({ type: '', text: '' });
+
+    try {
+      const updatedUserData = await updateUserAvatar(avatarFile);
+      console.log('Backend response after avatar upload:', updatedUserData);
+       
+      setAvatarMessage({ type: 'success', text: 'Avatar updated successfully!' });
+      setAvatarFile(null); // Clear the file state
+      
+      const absoluteAvatarUrl = getAbsoluteAvatarUrl(updatedUserData?.avatarUrl);
+      console.log('Absolute avatar URL constructed:', absoluteAvatarUrl);
+
+      // Update session with the RELATIVE path, but use absolute for preview
+      await updateSession({ user: { ...session.user, avatarUrl: updatedUserData?.avatarUrl } }); // Use relative path from backend response
+      setAvatarPreview(absoluteAvatarUrl); // Use absolute path for immediate preview
+
+    } catch (error) {
+      console.error('Error during avatar upload:', error);
+      setAvatarMessage({ type: 'error', text: error.message || 'Failed to upload avatar.' });
+      setAvatarPreview(getAbsoluteAvatarUrl(session.user.avatarUrl) || null);
+    } finally {
+      setIsAvatarLoading(false);
+    }
+  };
+
+  // --- Render ---
+  console.log('Rendering ProfilePage, avatarPreview state:', avatarPreview);
+  
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-2xl font-semibold flex items-center">
@@ -97,14 +198,61 @@ const ProfilePage = () => {
       </h1>
 
       {/* User Info Display */}
-      <div className="bg-white shadow-md rounded-lg p-6 max-w-lg mx-auto mb-6">
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-500 mb-1">Current Name</label>
-          <p className="text-lg text-gray-800">{user.name || 'N/A'}</p>
+      <div className="bg-white shadow-md rounded-lg p-6 max-w-lg mx-auto mb-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
+        {/* Avatar Section */}
+        <div className="flex flex-col items-center">
+          <div className="relative w-24 h-24 mb-2">
+            {avatarPreview ? (
+              <img
+                src={avatarPreview}
+                alt="Avatar Preview"
+                className="w-full h-full rounded-full object-cover border-2 border-gray-300"
+              />
+            ) : (
+              <FaUserCircle className="w-full h-full text-gray-400" />
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 bg-gray-700 hover:bg-gray-800 text-white rounded-full p-1.5 shadow-md"
+              aria-label="Change avatar"
+              title="Change avatar"
+            >
+              <FaCamera className="w-3 h-3" />
+            </button>
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+            id="avatar-upload"
+          />
+          {avatarFile && (
+            <button
+              type="button"
+              onClick={handleAvatarUpload}
+              disabled={isAvatarLoading}
+              className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+            >
+              <FaUpload className="mr-1.5 h-3 w-3" />
+              {isAvatarLoading ? 'Uploading...' : 'Upload'}
+            </button>
+          )}
+          {avatarMessage.text && <Alert type={avatarMessage.type} message={avatarMessage.text} onClose={() => setAvatarMessage({ type: '', text: '' })} />}
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
-          <p className="text-lg text-gray-800">{user.email || 'N/A'}</p>
+
+        {/* User Details Section */}
+        <div className="flex-grow text-center md:text-left">
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-500 mb-1">Current Name</label>
+            <p className="text-lg text-gray-800">{user.name || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
+            <p className="text-lg text-gray-800">{user.email || 'N/A'}</p>
+          </div>
         </div>
       </div>
 

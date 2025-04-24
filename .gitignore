@@ -46,3 +46,6 @@ Desktop.ini
 
 # Uploaded files
 server/uploads/
+
+# Ignore server public directory (e.g., user uploads)
+server/public/
