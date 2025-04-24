@@ -17,7 +17,7 @@ export const authOptions = {
       name: 'Credentials',
       async authorize(credentials) {
         console.log('Authorize: Attempting login for:', credentials.email);
-        
+          
         // Ensure credentials object and properties exist
         if (!credentials || !credentials.email || !credentials.password) {
           console.error('Authorize: Missing credentials');
@@ -32,7 +32,7 @@ export const authOptions = {
             email: credentials.email,
             password: credentials.password,
           });
-
+          
           // Check if the response contains the expected data
           const backendData = response.data;
           if (backendData && backendData.token && backendData.user) {

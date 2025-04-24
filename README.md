@@ -1,6 +1,6 @@
 # Plant Care Assistant
 
-A full-stack web application to help users track and manage their plants' care needs. The application allows users to store information about their plants, set watering and care reminders, and track plant growth over time.
+A full-stack web application to help users track and manage their plants' care needs. The application allows users to store information about their plants, set watering and care reminders, and track plant growth over time. It features AI-powered image recognition to verify plant images during upload and provides detailed plant/flower health status checks using Google Gemini.
 
 ## Features
 
@@ -46,7 +46,6 @@ cd plant-care-assistant
 2. Install dependencies for both client and server
 ```bash
 # Install server dependencies
-cd server
 npm install
 
 # Install client dependencies
@@ -55,25 +54,27 @@ npm install
 ```
 
 3. Set up environment variables
-   - Create a `.env` file in the server directory:
-   ```
+   - Create a `.env` file in the **root** directory:
+   ```dotenv
    MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
+   JWT_SECRET=your_jwt_secret_key_for_backend_tokens
+   GEMINI_API_KEY=your_google_gemini_api_key # Required for AI Plant Status Check
    ```
    
-   - Create a `.env.local` file in the client directory:
-   ```
+   - Create a `.env.local` file in the **client** directory:
+   ```dotenv
    NEXTAUTH_URL=http://localhost:3000
-   NEXTAUTH_SECRET=your_nextauth_secret
+   NEXTAUTH_SECRET=your_nextauth_secret_key_for_session_encryption
+   # Optional: Define the backend API URL if it's different from the proxy default (http://localhost:5000)
+   NEXT_PUBLIC_API_URL=http://localhost:5000/api
    ```
 
 4. Start the development servers
+   - Ensure you are in the correct directory for each command.
 ```bash
-# Start the backend server (from the server directory)
+# Start the backend server and frontend server (run from the root directory)
 npm run dev
 
-# Start the frontend server (from the client directory)
-npm run dev
 ```
 
 5. Access the application
