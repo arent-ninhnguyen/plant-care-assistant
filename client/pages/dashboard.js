@@ -6,8 +6,9 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import axios from 'axios';
 import { FaLeaf, FaPlus, FaBell, FaTint, FaCalendarAlt, FaCheck } from 'react-icons/fa';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInHours, isFuture } from 'date-fns';
 import ClientOnly from '../components/common/ClientOnly';
+import { toast } from 'react-toastify';
 
 // Components
 import PlantCard from '../components/plants/PlantCard';
@@ -185,6 +186,51 @@ function DashboardContent() {
   useEffect(() => {
     fetchData(); // Fetch data when component mounts or status changes
   }, [fetchData]);
+
+  // --- NEW: Effect to check for upcoming reminders --- 
+  useEffect(() => {
+    console.log('[Reminder Check Effect] Running. Current reminders state:', reminders);
+
+    if (reminders && reminders.length > 0) {
+      const now = new Date();
+      let notificationShown = false; // Flag to show only one summary toast for now
+      
+      console.log('[Reminder Check] Checking reminders for due dates...'); // Added log
+
+      reminders.forEach(reminder => {
+        console.log('  [Reminder Check Loop] Processing reminder:', reminder); // <-- Log the whole reminder object
+        try {
+          if (reminder.dueDate) {
+            const dueDateObj = parseISO(reminder.dueDate);
+            const hoursDifference = differenceInHours(dueDateObj, now);
+            console.log(`  - Checking: ${reminder.plantName} - ${reminder.type}, Due: ${reminder.dueDate}, Hours Diff: ${hoursDifference}`);
+
+            // --- MODIFIED CONDITION --- 
+            // Check if due date is within 24 hours (past or future)
+            if (hoursDifference <= 24) { 
+              // Also check if it's *not* already marked complete in the current state
+              if (!reminder.completed) {
+                 console.log(`    -> Due Soon or Overdue: ${reminder.plantName} - ${reminder.type}`);
+                 // Show a single summary toast for now to avoid spamming
+                 if (!notificationShown) {
+                    toast.warn(`You have reminders that are overdue or due within 24 hours!`); // Updated message
+                    notificationShown = true;
+                 }
+              }
+            } else {
+              // Optional: Log why it didn't trigger for debugging
+              // console.log(`    -> Not triggering: Hours diff > 24`);
+            }
+          } else {
+             // Optional: Log reminders without a nextReminderDate
+             // console.log(`  - Skipping: ${reminder.plantName} - ${reminder.type} (no nextReminderDate)`);
+          }
+        } catch (e) {
+          console.error("Error processing reminder date:", reminder, e);
+        }
+      });
+    }
+  }, [reminders]); // Run this effect when the reminders state changes
 
   // Get effective user from all sources
   const effectiveUser = session?.user || directSession?.user || manualUser;
@@ -397,10 +443,30 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 divide-y">
-            {sortedReminders.slice(0, 5).map(reminder => (
-              <div key={reminder._id} className="p-4 flex justify-between items-center">
+            {sortedReminders.slice(0, 5).map(reminder => {
+              // --- Add Highlighting Logic Here ---
+              let isDueSoonOrOverdue = false;
+              try {
+                if (reminder.dueDate && !reminder.completed) {
+                  const dueDateObj = parseISO(reminder.dueDate);
+                  const hoursDifference = differenceInHours(dueDateObj, new Date());
+                  if (hoursDifference <= 24) {
+                    isDueSoonOrOverdue = true;
+                  }
+                }
+              } catch (e) {
+                console.error("Error checking due date for highlight:", reminder, e);
+              }
+              // --- End Highlighting Logic ---
+              
+              return (
+              <div 
+                key={reminder._id} 
+                className={`p-4 flex justify-between items-center ${isDueSoonOrOverdue ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}
+              >
                 <div>
-                  <p className="font-medium">{reminder.plantId.name}</p>
+                  {/* Ensure plantId exists before accessing name */}
+                  <p className="font-medium">{reminder.plantId?.name || 'Unknown Plant'}</p>
                   <p className="text-sm text-gray-600">
                     {reminder.type.charAt(0).toUpperCase() + reminder.type.slice(1)} due {' '}
                     {new Date(reminder.dueDate).toLocaleDateString()}
@@ -421,7 +487,8 @@ function DashboardContent() {
                   )}
                 </div>
               </div>
-            ))}
+             );
+            })}
           </div>
         )}
       </div>

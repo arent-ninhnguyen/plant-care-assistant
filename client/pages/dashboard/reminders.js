@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import remindersApi from '../../utils/remindersApi'; // Adjust path if needed
-import { format, parseISO, compareAsc } from 'date-fns';
+import { format, parseISO, compareAsc, differenceInHours } from 'date-fns';
 import { FaBell, FaCheckCircle, FaTimesCircle, FaEdit, FaTrashAlt, FaCalendarDay } from 'react-icons/fa';
 
 // Reminder Row Component (for better structure)
@@ -13,8 +13,30 @@ const ReminderRow = ({ reminder, onToggleComplete, onDelete }) => {
   const isCompleted = reminder.completed;
   const dueDate = parseISO(reminder.dueDate);
 
+  // --- Add Highlighting Logic --- 
+  let isDueSoonOrOverdue = false;
+  if (!isCompleted && reminder.dueDate) {
+    try {
+      const hoursDifference = differenceInHours(dueDate, new Date());
+      if (hoursDifference <= 24) {
+        isDueSoonOrOverdue = true;
+      }
+    } catch (e) {
+      console.error("Error checking due date for highlight in ReminderRow:", reminder, e);
+    }
+  }
+  // --- End Highlighting Logic ---
+
+  // Define base classes and conditional classes
+  const baseClasses = "hover:bg-gray-50";
+  const completedClasses = "bg-green-50 text-gray-500 line-through";
+  const dueSoonClasses = "bg-yellow-50";
+
   return (
-    <tr className={`${isCompleted ? 'bg-green-50 text-gray-500 line-through' : 'bg-white'} hover:bg-gray-50`}>
+    <tr className={`
+      ${baseClasses} 
+      ${isCompleted ? completedClasses : (isDueSoonOrOverdue ? dueSoonClasses : 'bg-white')}
+    `}>
       <td className="px-4 py-3 whitespace-nowrap">
         <Link href={`/plants/${reminder.plantId?._id}`} className="text-primary-600 hover:underline font-medium">
           {reminder.plantId?.name || 'Unknown Plant'}

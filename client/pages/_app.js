@@ -6,6 +6,8 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import Layout from '../components/layout/Layout';
 import { AppProvider } from '../context/AppContext';
 import { useState, useEffect } from 'react';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 
 export default function MyApp({ Component, pageProps }) {
   const [isClient, setIsClient] = useState(false);
@@ -37,6 +39,18 @@ export default function MyApp({ Component, pageProps }) {
         <Layout>
           <Component {...pageProps} />
         </Layout>
+        <ToastContainer 
+          position="top-right" 
+          autoClose={5000} 
+          hideProgressBar={false} 
+          newestOnTop={false} 
+          closeOnClick 
+          rtl={false} 
+          pauseOnFocusLoss 
+          draggable 
+          pauseOnHover 
+          theme="colored"
+        />
       </AppProvider>
     </SessionProvider>
   );

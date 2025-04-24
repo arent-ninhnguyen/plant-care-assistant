@@ -23,7 +23,8 @@
     "react-big-calendar": "^1.18.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.8.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "react-toastify": "^11.0.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",

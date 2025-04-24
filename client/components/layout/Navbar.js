@@ -2,13 +2,38 @@
 
 import Link from 'next/link';
 // import { useRouter } from 'next/router'; // No longer needed for auth check
-import { FaLeaf, FaSignOutAlt, FaUserPlus, FaSignInAlt } from 'react-icons/fa';
+import { FaLeaf, FaSignOutAlt, FaUserPlus, FaSignInAlt, FaUserCircle } from 'react-icons/fa';
 import { useSession, signOut } from 'next-auth/react'; // Import useSession and signOut
+import Image from 'next/image'; // <-- Import Image
 // import { useState, useEffect } from 'react'; // No longer needed for auth state
+
+// --- Define Backend Origin (Consistent with other components) ---
+let backendOrigin = 'http://localhost:5000'; // Default fallback
+if (process.env.NEXT_PUBLIC_API_URL) {
+  try {
+    const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
+    backendOrigin = apiUrl.origin; // e.g., http://localhost:5000
+  } catch (e) {
+    console.error('[Navbar] Invalid NEXT_PUBLIC_API_URL, using default origin.', e);
+  }
+}
+
+// Helper function (Consistent with other components)
+const getAbsoluteAvatarUrl = (relativeUrl) => {
+  if (!relativeUrl || !relativeUrl.startsWith('/')) {
+    return null; 
+  }
+  return `${backendOrigin}${relativeUrl}`; 
+};
 
 const Navbar = ({ className = '' }) => {
   // Get session status and data
   const { data: session, status } = useSession();
+
+  // Construct avatar URL only if authenticated
+  const avatarUrl = status === 'authenticated' && session?.user?.avatarUrl 
+                    ? getAbsoluteAvatarUrl(session.user.avatarUrl) 
+                    : null;
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -36,8 +61,27 @@ const Navbar = ({ className = '' }) => {
             {status === 'authenticated' && session?.user && (
               // User is logged in
               <>
+                <Link href="/dashboard/profile" title="Go to Profile">
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                    {avatarUrl ? (
+                      <Image 
+                        src={avatarUrl} 
+                        alt="User Avatar" 
+                        width={32} 
+                        height={32} 
+                        className="object-cover w-full h-full"
+                        onError={(e) => { 
+                           console.warn('Navbar avatar failed to load:', avatarUrl);
+                           e.target.style.display = 'none'; 
+                        }}
+                      />
+                    ) : (
+                      <FaUserCircle className="text-gray-400 w-6 h-6" />
+                    )}
+                  </div>
+                </Link>
                 <span className="text-sm font-medium">
-                  Welcome, {session.user.name || 'User'} {/* Display name from session, fallback to 'User' */}
+                  Welcome, {session.user.name || 'User'}
                 </span>
                 <button 
                   onClick={handleLogout}
