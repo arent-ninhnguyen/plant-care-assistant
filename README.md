@@ -8,6 +8,8 @@ A full-stack web application to help users track and manage their plants' care n
 - **Plant Management**: Add, edit, and remove plants from your collection
 - **Care Reminders**: Set and manage reminders for watering, fertilizing, and other care tasks
 - **Dashboard**: View your plant collection and upcoming care tasks at a glance
+- **AI Plant Status Check**: Upload an image of your plant or flower on its detail page to get an AI-powered health analysis (using Google Gemini). The analysis includes an overall assessment, potential issues, and care suggestions, available in multiple languages (English, Vietnamese, Spanish, Japanese).
+- **User Profile Management**: Update name, password, and upload a custom avatar.
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Tech Stack
