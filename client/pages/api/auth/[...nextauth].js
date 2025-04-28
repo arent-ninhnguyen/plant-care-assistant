@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import axios from 'axios';
 
 // Base URL for backend API calls within callbacks
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:5000';
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 // Add debug handler to ensure proper error formatting
 const debug = (message) => {
@@ -17,14 +17,14 @@ export const authOptions = {
       name: 'Credentials',
       async authorize(credentials) {
         console.log('Authorize: Attempting login for:', credentials.email);
-          
+
         // Ensure credentials object and properties exist
         if (!credentials || !credentials.email || !credentials.password) {
           console.error('Authorize: Missing credentials');
           throw new Error('Missing email or password');
         }
 
-        const backendLoginUrl = process.env.BACKEND_API_URL ? `${process.env.BACKEND_API_URL}/api/users/login` : 'http://localhost:5000/api/users/login';
+        const backendLoginUrl = `${BACKEND_API_URL}/users/login`;
         console.log(`Authorize: Sending request to backend: ${backendLoginUrl}`);
 
         try {
@@ -32,7 +32,7 @@ export const authOptions = {
             email: credentials.email,
             password: credentials.password,
           });
-          
+
           // Check if the response contains the expected data
           const backendData = response.data;
           if (backendData && backendData.token && backendData.user) {
@@ -96,42 +96,42 @@ export const authOptions = {
       // refetch user data to ensure token is fresh.
       // This ensures changes like avatar updates are reflected.
       if (token.id && token.backendToken) {
-          console.log(`[next-auth] JWT callback - Refreshing user data for token validation/read. User ID: ${token.id}`);
-          try {
-              const profileUrl = `${BACKEND_API_URL}/api/users/me`; // <-- Changed to use existing /me route
-              const response = await axios.get(profileUrl, {
-                  headers: { Authorization: `Bearer ${token.backendToken}` },
-              });
-              const freshUser = response.data;
-              if (freshUser) {
-                  // Update token with latest data from DB
-                  token.name = freshUser.name;
-                  token.email = freshUser.email;
-                  token.avatarUrl = freshUser.avatarUrl;
-                  console.log('[next-auth] JWT callback - Successfully refreshed user data in token.');
-              } else {
-                 console.warn('[next-auth] JWT callback - Profile endpoint returned no user data during refresh.');
-                 // Decide how to handle: return old token? invalidate token? 
-                 // Returning old token for now.
-              }
-          } catch (error) {
-              console.error('[next-auth] JWT callback - Error refreshing user data:', error.response?.data || error.message);
-              // Decide how to handle: return old token? invalidate token by returning null/error?
-              // Returning old token to prevent immediate logout, but session might be stale.
+        console.log(`[next-auth] JWT callback - Refreshing user data for token validation/read. User ID: ${token.id}`);
+        try {
+          const profileUrl = `${BACKEND_API_URL}/users/me`; // <-- Changed to use existing /me route
+          const response = await axios.get(profileUrl, {
+            headers: { Authorization: `Bearer ${token.backendToken}` },
+          });
+          const freshUser = response.data;
+          if (freshUser) {
+            // Update token with latest data from DB
+            token.name = freshUser.name;
+            token.email = freshUser.email;
+            token.avatarUrl = freshUser.avatarUrl;
+            console.log('[next-auth] JWT callback - Successfully refreshed user data in token.');
+          } else {
+            console.warn('[next-auth] JWT callback - Profile endpoint returned no user data during refresh.');
+            // Decide how to handle: return old token? invalidate token? 
+            // Returning old token for now.
           }
+        } catch (error) {
+          console.error('[next-auth] JWT callback - Error refreshing user data:', error.response?.data || error.message);
+          // Decide how to handle: return old token? invalidate token by returning null/error?
+          // Returning old token to prevent immediate logout, but session might be stale.
+        }
       }
-      
+
       return token;
     },
     async session({ session, token }) {
       // Send properties to the client, like id and token
       if (token && session.user) {
-         session.user.id = token.id;
-         session.user.accessToken = token.backendToken; 
-         // Ensure all necessary fields from the (potentially refreshed) token are copied
-         session.user.name = token.name;
-         session.user.email = token.email; 
-         session.user.avatarUrl = token.avatarUrl;
+        session.user.id = token.id;
+        session.user.accessToken = token.backendToken;
+        // Ensure all necessary fields from the (potentially refreshed) token are copied
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.avatarUrl = token.avatarUrl;
       }
       return session;
     },

@@ -25,7 +25,7 @@ function RegisterForm() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -35,24 +35,24 @@ function RegisterForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.password2) {
       setError('Passwords do not match');
       setSuccessMessage('');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
-    
-    const backendRegisterUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL 
-                               ? `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users/register` 
-                               : 'http://localhost:5000/api/users/register';
+
+    const backendRegisterUrl = process.env.NEXT_PUBLIC_API_URL
+      ? `${process.env.NEXT_PUBLIC_API_URL}/users/register`
+      : 'http://localhost:5001/api/users/register';
 
     try {
       console.log('Attempting registration via backend:', backendRegisterUrl);
-      
+
       const response = await fetch(backendRegisterUrl, {
         method: 'POST',
         headers: {
@@ -64,7 +64,7 @@ function RegisterForm() {
           password: formData.password
         }),
       });
-      
+
       let responseData = {};
       try {
         responseData = await response.json();
@@ -77,14 +77,14 @@ function RegisterForm() {
         console.error('Backend registration failed:', errorMessage, 'Status:', response.status);
         throw new Error(errorMessage);
       }
-      
-      console.log('Registration successful, response data:', responseData); 
+
+      console.log('Registration successful, response data:', responseData);
       setSuccessMessage('Account created successfully! Please log in.');
-      
+
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
-      
+
     } catch (err) {
       console.error('Registration error caught:', err);
       setError(err.message || 'An error occurred during registration');
@@ -107,9 +107,9 @@ function RegisterForm() {
         </div>
       )}
       {successMessage && (
-         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4" role="alert">
-           {successMessage}
-         </div>
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4" role="alert">
+          {successMessage}
+        </div>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -127,7 +127,7 @@ function RegisterForm() {
             required
           />
         </div>
-        
+
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
             Email Address
@@ -142,7 +142,7 @@ function RegisterForm() {
             required
           />
         </div>
-        
+
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
             Password
@@ -158,7 +158,7 @@ function RegisterForm() {
             minLength="6"
           />
         </div>
-        
+
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password2">
             Confirm Password
@@ -174,7 +174,7 @@ function RegisterForm() {
             minLength="6"
           />
         </div>
-        
+
         <button
           type="submit"
           className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
@@ -183,7 +183,7 @@ function RegisterForm() {
           {isLoading ? 'Creating Account...' : 'Register'}
         </button>
       </form>
-      
+
       <div className="text-center mt-6">
         <p className="text-gray-600">
           Already have an account?{' '}

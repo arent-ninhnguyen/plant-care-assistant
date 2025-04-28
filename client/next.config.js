@@ -2,28 +2,30 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '5000',
+        port: '5001',
         pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  async rewrites() {
-    return [
-      {
-        // Exclude /api/auth using a negative lookahead
-        source: '/api/((?!auth/).*)',
-        destination: 'http://localhost:5000/api/$1', // Proxy API requests to our Express backend
-      },
-    ];
-  },
+  // async rewrites() {
+  //   return [
+  //     {
+  //       source: '/api/:path*',
+  //       destination: 'http://localhost:5001/api/:path*',
+  //     },
+  //   ];
+  // },
 };
 
 module.exports = nextConfig; 

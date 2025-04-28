@@ -2,15 +2,15 @@ import axios from 'axios';
 import { getSession } from 'next-auth/react';
 
 // Base URL for the reminders API endpoint
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL 
-                 ? `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/reminders` 
-                 : 'http://localhost:5000/api/reminders';
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/reminders`
+  : 'http://localhost:5001/api/reminders';
 
 // Helper function to get auth headers dynamically
 const getAuthHeaders = async () => {
   const session = await getSession();
   const token = session?.user?.accessToken;
-  
+
   if (token) {
     return { 'Authorization': `Bearer ${token}` };
   } else {

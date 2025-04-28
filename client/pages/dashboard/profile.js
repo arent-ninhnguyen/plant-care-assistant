@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { FaUserCircle, FaEdit, FaLock, FaCamera, FaUpload } from 'react-icons/fa';
+import imageCompression from 'browser-image-compression'; // Import the library
 import { updateUserName, updateUserPassword, updateUserAvatar } from '../../utils/userApi';
 import Alert from '../../components/ui/Alert';
 
@@ -23,7 +24,7 @@ if (process.env.NEXT_PUBLIC_API_URL) {
 const getAbsoluteAvatarUrl = (relativeUrl) => {
   if (!relativeUrl || !relativeUrl.startsWith('/')) {
     // Return null if path is invalid or missing to avoid broken image icons
-    return null; 
+    return null;
   }
   // Prepend origin ONLY (removing /api)
   return `${backendOrigin}${relativeUrl}`; // Example: http://localhost:5000/uploads/avatars/...
@@ -59,16 +60,16 @@ const ProfilePage = () => {
     } else if (session?.user) {
       // Set name on load/session change
       setName(session.user.name || '');
-      
+
       // --- REVISED LOGIC: Only set INITIAL avatar preview --- 
       if (avatarPreview === null) { // Check if preview is not already set (by local selection or previous load)
         const sessionAvatarAbsoluteUrl = getAbsoluteAvatarUrl(session.user.avatarUrl);
         console.log('[Effect Run - Initial Load?] Setting avatarPreview from session data:', sessionAvatarAbsoluteUrl); // Log the constructed URL
         // Only set if the URL is valid
         if (sessionAvatarAbsoluteUrl) {
-             setAvatarPreview(sessionAvatarAbsoluteUrl);
+          setAvatarPreview(sessionAvatarAbsoluteUrl);
         } else {
-             setAvatarPreview(null); // Ensure it's null if URL construction failed
+          setAvatarPreview(null); // Ensure it's null if URL construction failed
         }
       }
     }
@@ -90,7 +91,7 @@ const ProfilePage = () => {
 
   // Should not happen if useEffect redirects, but good practice
   if (status === 'unauthenticated' || !session?.user) {
-     return <div className="p-6 text-center">Access Denied. Please log in.</div>;
+    return <div className="p-6 text-center">Access Denied. Please log in.</div>;
   }
 
   const { user } = session; // Destructure user from session
@@ -149,7 +150,7 @@ const ProfilePage = () => {
       setAvatarFile(file);
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
-      setAvatarMessage({ type: '', text: '' }); 
+      setAvatarMessage({ type: '', text: '' });
     } else {
       setAvatarFile(null);
       setAvatarPreview(getAbsoluteAvatarUrl(user.avatarUrl) || null);
@@ -166,12 +167,39 @@ const ProfilePage = () => {
     setAvatarMessage({ type: '', text: '' });
 
     try {
-      const updatedUserData = await updateUserAvatar(avatarFile);
+      // --- Image Compression --- 
+      console.log(`Original file size: ${avatarFile.size / 1024 / 1024} MB`);
+      const options = {
+        maxSizeMB: 4.5, // Target slightly less than backend limit (5MB)
+        maxWidthOrHeight: 1024, // Resize to a reasonable dimension
+        useWebWorker: true,
+      };
+
+      let fileToUpload = avatarFile;
+      // Only compress if the file exceeds the target size
+      if (avatarFile.size > options.maxSizeMB * 1024 * 1024) {
+        console.log('Compressing image...');
+        try {
+          fileToUpload = await imageCompression(avatarFile, options);
+          console.log(`Compressed file size: ${fileToUpload.size / 1024 / 1024} MB`);
+        } catch (compressionError) {
+          console.error('Image compression failed:', compressionError);
+          // Optionally notify user, but proceed with original file for now
+          setAvatarMessage({ type: 'warning', text: 'Could not compress image, attempting to upload original.' });
+          // fileToUpload remains the original avatarFile
+        }
+      } else {
+        console.log('Image size is within limit, no compression needed.');
+      }
+      // --- End Compression --- 
+
+      // Use fileToUpload (original or compressed) for the API call
+      const updatedUserData = await updateUserAvatar(fileToUpload);
       console.log('Backend response after avatar upload:', updatedUserData);
-       
+
       setAvatarMessage({ type: 'success', text: 'Avatar updated successfully!' });
       setAvatarFile(null); // Clear the file state
-      
+
       const absoluteAvatarUrl = getAbsoluteAvatarUrl(updatedUserData?.avatarUrl);
       console.log('Absolute avatar URL constructed:', absoluteAvatarUrl);
 
@@ -190,7 +218,7 @@ const ProfilePage = () => {
 
   // --- Render ---
   console.log('Rendering ProfilePage, avatarPreview state:', avatarPreview);
-  
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-2xl font-semibold flex items-center">
@@ -258,75 +286,75 @@ const ProfilePage = () => {
 
       {/* Update Name Form */}
       <div className="bg-white shadow-md rounded-lg p-6 max-w-lg mx-auto">
-         <h2 className="text-xl font-semibold mb-4 flex items-center">
-           <FaEdit className="mr-2 text-blue-500" /> Update Name
-         </h2>
-         {nameMessage.text && <Alert type={nameMessage.type} message={nameMessage.text} onClose={() => setNameMessage({ type: '', text: '' })} />}
-         <form onSubmit={handleNameUpdate} className="space-y-4">
-           <div>
-             <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-               New Name
-             </label>
-             <input
-               type="text"
-               id="name"
-               value={name}
-               onChange={(e) => setName(e.target.value)}
-               required
-               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-             />
-           </div>
-           <button
-             type="submit"
-             disabled={isNameLoading || !name || name === user.name}
-             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             {isNameLoading ? 'Updating...' : 'Update Name'}
-           </button>
-         </form>
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <FaEdit className="mr-2 text-blue-500" /> Update Name
+        </h2>
+        {nameMessage.text && <Alert type={nameMessage.type} message={nameMessage.text} onClose={() => setNameMessage({ type: '', text: '' })} />}
+        <form onSubmit={handleNameUpdate} className="space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              New Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isNameLoading || !name || name === user.name}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isNameLoading ? 'Updating...' : 'Update Name'}
+          </button>
+        </form>
       </div>
 
       {/* Update Password Form */}
       <div className="bg-white shadow-md rounded-lg p-6 max-w-lg mx-auto">
-         <h2 className="text-xl font-semibold mb-4 flex items-center">
-           <FaLock className="mr-2 text-red-500" /> Update Password
-         </h2>
-         {passwordMessage.text && <Alert type={passwordMessage.type} message={passwordMessage.text} onClose={() => setPasswordMessage({ type: '', text: '' })} />}
-         <form onSubmit={handlePasswordUpdate} className="space-y-4">
-           <div>
-             <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-               Current Password
-             </label>
-             <input
-               type="password"
-               id="currentPassword"
-               value={currentPassword}
-               onChange={(e) => setCurrentPassword(e.target.value)}
-               required
-               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-             />
-           </div>
-           <div>
-             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-               New Password
-             </label>
-             <input
-               type="password"
-               id="newPassword"
-               value={newPassword}
-               onChange={(e) => setNewPassword(e.target.value)}
-               required
-               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-             />
-           </div>
-           <button
-             type="submit"
-             disabled={isPasswordLoading || !currentPassword || !newPassword}
-             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             {isPasswordLoading ? 'Updating...' : 'Update Password'}
-           </button>
-         </form>
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <FaLock className="mr-2 text-red-500" /> Update Password
+        </h2>
+        {passwordMessage.text && <Alert type={passwordMessage.type} message={passwordMessage.text} onClose={() => setPasswordMessage({ type: '', text: '' })} />}
+        <form onSubmit={handlePasswordUpdate} className="space-y-4">
+          <div>
+            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+              Current Password
+            </label>
+            <input
+              type="password"
+              id="currentPassword"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+              New Password
+            </label>
+            <input
+              type="password"
+              id="newPassword"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isPasswordLoading || !currentPassword || !newPassword}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPasswordLoading ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
       </div>
     </div>
   );

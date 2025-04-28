@@ -21,14 +21,17 @@ if (process.env.NEXT_PUBLIC_API_URL) {
 // Helper function (Consistent with other components)
 const getAbsoluteAvatarUrl = (relativeUrl) => {
   if (!relativeUrl || !relativeUrl.startsWith('/')) {
-    return null; 
+    return null;
   }
-  return `${backendOrigin}${relativeUrl}`; 
+  return `${backendOrigin}${relativeUrl}`;
 };
 
 const Navbar = ({ className = '' }) => {
   const { data: session, status } = useSession();
   const router = useRouter(); // <-- Get router instance
+
+  // Determine the target link for the logo
+  const logoHref = status === 'authenticated' ? '/dashboard' : '/';
 
   // Routes where user-specific info should be hidden even if technically authenticated during transition
   const authRoutes = ['/auth/login', '/auth/register'];
@@ -37,9 +40,9 @@ const Navbar = ({ className = '' }) => {
   const onAuthPage = authRoutes.includes(router.pathname);
 
   // Construct avatar URL only if authenticated AND not on auth page
-  const avatarUrl = status === 'authenticated' && !onAuthPage && session?.user?.avatarUrl 
-                    ? getAbsoluteAvatarUrl(session.user.avatarUrl) 
-                    : null;
+  const avatarUrl = status === 'authenticated' && !onAuthPage && session?.user?.avatarUrl
+    ? getAbsoluteAvatarUrl(session.user.avatarUrl)
+    : null;
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -52,12 +55,12 @@ const Navbar = ({ className = '' }) => {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-primary-600 flex items-center">
-              <FaLeaf className="mr-2" /> 
+            <Link href={logoHref} className="text-xl font-bold text-primary-600 flex items-center">
+              <FaLeaf className="mr-2" />
               <span>Plant Care Assistant</span>
             </Link>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {status === 'loading' && (
               // Optional: Show a loading indicator
@@ -70,15 +73,15 @@ const Navbar = ({ className = '' }) => {
                 <Link href="/dashboard/profile" title="Go to Profile">
                   <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
                     {avatarUrl ? (
-                      <Image 
-                        src={avatarUrl} 
-                        alt="User Avatar" 
-                        width={32} 
-                        height={32} 
+                      <Image
+                        src={avatarUrl}
+                        alt="User Avatar"
+                        width={32}
+                        height={32}
                         className="object-cover w-full h-full"
-                        onError={(e) => { 
-                           console.warn('Navbar avatar failed to load:', avatarUrl);
-                           e.target.style.display = 'none'; 
+                        onError={(e) => {
+                          console.warn('Navbar avatar failed to load:', avatarUrl);
+                          e.target.style.display = 'none';
                         }}
                       />
                     ) : (
@@ -89,11 +92,11 @@ const Navbar = ({ className = '' }) => {
                 <span className="text-sm font-medium">
                   Welcome, {session.user.name || 'User'}
                 </span>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="flex items-center text-gray-700 hover:text-primary-600"
                 >
-                  <FaSignOutAlt className="mr-1" /> 
+                  <FaSignOutAlt className="mr-1" />
                   <span>Logout</span>
                 </button>
               </>
@@ -102,17 +105,17 @@ const Navbar = ({ className = '' }) => {
             {/* Show Login/Register only if Unauthenticated OR on an Auth Page */}
             {(status === 'unauthenticated' || onAuthPage) && (
               <>
-                {/* Optionally hide Register link if already on register page */} 
+                {/* Optionally hide Register link if already on register page */}
                 {!onAuthPage || router.pathname !== '/auth/register' ? (
-                   <Link href="/auth/register" className="flex items-center text-gray-700 hover:text-primary-600">
-                    <FaUserPlus className="mr-1" /> 
+                  <Link href="/auth/register" className="flex items-center text-gray-700 hover:text-primary-600">
+                    <FaUserPlus className="mr-1" />
                     <span>Register</span>
                   </Link>
                 ) : null}
-                {/* Optionally hide Login link if already on login page */} 
+                {/* Optionally hide Login link if already on login page */}
                 {!onAuthPage || router.pathname !== '/auth/login' ? (
                   <Link href="/auth/login" className="flex items-center text-gray-700 hover:text-primary-600">
-                    <FaSignInAlt className="mr-1" /> 
+                    <FaSignInAlt className="mr-1" />
                     <span>Login</span>
                   </Link>
                 ) : null}
